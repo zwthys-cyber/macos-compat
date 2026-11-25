@@ -1,0 +1,30 @@
+version: 2.1
+jobs:
+  macos-compat:
+    macos:
+      xcode: "26.5"
+    resource_class: m4pro.medium
+    steps:
+      - run:
+          name: Verify native ARM64 and report x86-64 translation
+          command: |
+            set -eu
+            sw_vers
+            xcodebuild -version
+            test "$(uname -m)" = arm64
+            tmp="$(mktemp -d)"
+            trap 'rm -rf "$tmp"' EXIT
+            printf '%s\n' 'int main(void) { return 0; }' > "$tmp/probe.c"
+            xcrun clang -arch arm64 "$tmp/probe.c" -o "$tmp/probe-arm64"
+            "$tmp/probe-arm64"
+            echo 'arm64=passed'
+            xcrun clang -arch x86_64 "$tmp/probe.c" -o "$tmp/probe-x86_64"
+            if arch -x86_64 "$tmp/probe-x86_64"; then
+              echo 'rosetta_x86_64=passed'
+            else
+              echo 'rosetta_x86_64=unavailable_or_failed'
+            fi
+workflows:
+  compatibility:
+    jobs:
+      - macos-compat
