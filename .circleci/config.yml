@@ -1,52 +1,51 @@
 version: 2.1
+
 jobs:
-  macos-compat:
+  arm64-ios-archive:
     macos:
       xcode: "26.5"
     resource_class: m4pro.medium
     steps:
-      - run:
-          name: Verify native ARM64 execution
-          command: |
-            set -eu
-            sw_vers
-            xcodebuild -version
-            test "$(uname -m)" = arm64
-            tmp="$(mktemp -d)"
-            trap 'rm -rf "$tmp"' EXIT
-            printf '%s\n' 'int main(void) { return 0; }' > "$tmp/probe.c"
-            xcrun clang -arch arm64 "$tmp/probe.c" -o "$tmp/probe-arm64"
-            "$tmp/probe-arm64"
-            echo 'arm64=passed'
       - checkout
       - run:
-          name: Archive, package, and verify the ARM64 iOS sample
-          command: bash sample/build-ipa.sh
-      - run:
-          name: Verify the IPA with the v0.2 delivery archive verifier
+          name: Verify the Apple silicon runner
           command: |
             set -euo pipefail
-            verifier_dir="$(mktemp -d)"
-            trap 'rm -rf "$verifier_dir"' EXIT
-            source_url="https://raw.githubusercontent.com/zwthys-cyber/ipa-decrypt-lab/75293a9a3c28963bcfe7fccd84620bf70c7753bd/deploy/managed/free-pilot"
-            curl --fail --silent --show-error --proto '=https' --max-time 20 "$source_url/archive_verify.py" -o "$verifier_dir/archive_verify.py"
-            curl --fail --silent --show-error --proto '=https' --max-time 20 "$source_url/zip_preflight.py" -o "$verifier_dir/zip_preflight.py"
-            (
-              cd "$verifier_dir"
-              printf '%s\n' \
-                '2c487eda3cfc8af86501f80d8357ee93cf62ca760b3b49268153526756bc81e2  archive_verify.py' \
-                'f07e91a8798466f5bcb1d4d7df1ac9132c93134315824190d0fdb826540aa89e  zip_preflight.py' |
-                shasum -a 256 -c -
-            )
-            ipa="build/ipa/ARMSample-unsigned.ipa"
-            chmod 600 "$ipa"
-            expected="$(awk '$2 == "ARMSample-unsigned.ipa" {print $1}' build/ipa/SHA256SUMS)"
-            python3 "$verifier_dir/archive_verify.py" "$ipa" --expected-sha256 "$expected" --confirm-authorized-file |
-              tee build/ipa/delivery-verification.json
+            test "$(uname -m)" = arm64
+            xcodebuild -version
+            python3 --version
+      - run:
+          name: Run the archive verifier tests
+          command: python3 deploy/managed/free-pilot/test_archive_verify.py -v
+      - run:
+          name: Build the project-owned ARM64 iOS sample
+          command: |
+            set -euo pipefail
+            fixture_commit=3bd9bcf51567379659931094a842707ec064cf13
+            fixture_dir=build/arm64-fixture
+            git init --quiet "$fixture_dir"
+            git -C "$fixture_dir" fetch --depth=1 --no-tags \
+              https://github.com/zwthys-cyber/macos-compat.git "$fixture_commit"
+            git -C "$fixture_dir" checkout --quiet --detach FETCH_HEAD
+            test "$(git -C "$fixture_dir" rev-parse HEAD)" = "$fixture_commit"
+            bash "$fixture_dir/sample/build-ipa.sh"
+      - run:
+          name: Verify the packaged sample with the v0.2 archive tool
+          command: |
+            set -euo pipefail
+            output_dir=build/arm64-fixture/build/ipa
+            artifact="$output_dir/ARMSample-unsigned.ipa"
+            expected=$(awk '$2 == "ARMSample-unsigned.ipa" {print $1}' "$output_dir/SHA256SUMS")
+            [[ "$expected" =~ ^[0-9a-f]{64}$ ]]
+            chmod 0600 "$artifact"
+            python3 deploy/managed/free-pilot/archive_verify.py "$artifact" \
+              --expected-sha256 "$expected" --confirm-authorized-file |
+              tee "$output_dir/delivery-verification.json"
       - store_artifacts:
-          path: build/ipa
+          path: build/arm64-fixture/build/ipa
           destination: arm64-ios-sample
+
 workflows:
-  compatibility:
+  arm64-archive-validation:
     jobs:
-      - macos-compat
+      - arm64-ios-archive
