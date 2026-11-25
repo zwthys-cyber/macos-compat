@@ -69,6 +69,12 @@ jobs:
             node --check pilot-dist/worker.mjs
       - run: circleci testsuite doctor "Free pilot Python"
       - run: circleci testsuite run "Free pilot Python"
+      - run:
+          name: Inspect the workerd integration startup
+          command: |
+            getconf GNU_LIBC_VERSION
+            (cd deploy/managed/free-pilot && ./node_modules/.bin/workerd --version)
+            node --test deploy/managed/free-pilot/workerd.integration.mjs
       - run: circleci testsuite doctor "Free pilot Worker"
       - run: circleci testsuite run "Free pilot Worker"
       - store_test_results:

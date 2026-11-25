@@ -48,9 +48,16 @@ def main():
                     "errors": str(sum(case.find("error") is not None for case in cases)),
                     "skipped": str(sum(case.find("skipped") is not None for case in cases)),
                 })
+                stderr = []
                 for case in cases:
                     case.set("file", atom.as_posix())
+                    for output in case.findall("system-err"):
+                        case.remove(output)
+                        if output.text:
+                            stderr.append(f"{case.get('name')}: {output.text}")
                     suite.append(case)
+                if stderr:
+                    ET.SubElement(suite, "system-err").text = "\n".join(stderr)
             except (OSError, ET.ParseError, ValueError) as error:
                 print(f"{atom}: invalid JUnit output: {error}", file=sys.stderr)
                 failed = True
