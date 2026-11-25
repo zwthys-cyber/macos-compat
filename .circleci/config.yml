@@ -1,52 +1,81 @@
 version: 2.1
+
+functions:
+  setup-python: github.com/circleci-functions/setup-python@v0.5.0
+  setup-node: github.com/circleci-functions/setup-node@v0.6.0
+
 jobs:
-  macos-compat:
-    macos:
-      xcode: "26.5"
-    resource_class: m4pro.medium
+  archive-audit:
+    docker:
+      - image: cimg/base:stable
     steps:
-      - run:
-          name: Verify native ARM64 execution
-          command: |
-            set -eu
-            sw_vers
-            xcodebuild -version
-            test "$(uname -m)" = arm64
-            tmp="$(mktemp -d)"
-            trap 'rm -rf "$tmp"' EXIT
-            printf '%s\n' 'int main(void) { return 0; }' > "$tmp/probe.c"
-            xcrun clang -arch arm64 "$tmp/probe.c" -o "$tmp/probe-arm64"
-            "$tmp/probe-arm64"
-            echo 'arm64=passed'
       - checkout
       - run:
-          name: Archive, package, and verify the ARM64 iOS sample
-          command: bash sample/build-ipa.sh
-      - run:
-          name: Verify the IPA with the v0.2 delivery archive verifier
+          name: Check out the starter's source revision
           command: |
             set -euo pipefail
-            verifier_dir="$(mktemp -d)"
-            trap 'rm -rf "$verifier_dir"' EXIT
-            source_url="https://raw.githubusercontent.com/zwthys-cyber/ipa-decrypt-lab/75293a9a3c28963bcfe7fccd84620bf70c7753bd/deploy/managed/free-pilot"
-            curl --fail --silent --show-error --proto '=https' --max-time 20 "$source_url/archive_verify.py" -o "$verifier_dir/archive_verify.py"
-            curl --fail --silent --show-error --proto '=https' --max-time 20 "$source_url/zip_preflight.py" -o "$verifier_dir/zip_preflight.py"
-            (
-              cd "$verifier_dir"
-              printf '%s\n' \
-                '2c487eda3cfc8af86501f80d8357ee93cf62ca760b3b49268153526756bc81e2  archive_verify.py' \
-                'f07e91a8798466f5bcb1d4d7df1ac9132c93134315824190d0fdb826540aa89e  zip_preflight.py' |
-                shasum -a 256 -c -
-            )
-            ipa="build/ipa/ARMSample-unsigned.ipa"
-            chmod 600 "$ipa"
-            expected="$(awk '$2 == "ARMSample-unsigned.ipa" {print $1}' build/ipa/SHA256SUMS)"
-            python3 "$verifier_dir/archive_verify.py" "$ipa" --expected-sha256 "$expected" --confirm-authorized-file |
-              tee build/ipa/delivery-verification.json
-      - store_artifacts:
-          path: build/ipa
-          destination: arm64-ios-sample
+            suite_files=$(mktemp -d)
+            cp .circleci/junit.py .circleci/test-suites.yml "$suite_files/"
+            git fetch --no-tags --depth=1 https://github.com/zwthys-cyber/ipa-decrypt-lab.git 2713846b80ed82ed4f922c12757877413495c3d9
+            git checkout --quiet --detach FETCH_HEAD
+            test "$(git rev-parse HEAD)" = 2713846b80ed82ed4f922c12757877413495c3d9
+            cp "$suite_files/junit.py" "$suite_files/test-suites.yml" .circleci/
+      - setup-python:
+          with:
+            python-version: "3.12"
+      - run:
+          name: Install the unittest JUnit reporter
+          command: python3 -m pip install unittest-xml-reporting==3.2.0
+      - run: circleci testsuite doctor "Archive audit"
+      - run: circleci testsuite run "Archive audit"
+      - store_test_results:
+          path: test-results/archive-audit
+  free-pilot:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      CLOUDFLARE_CF_FETCH_ENABLED: "false"
+    steps:
+      - checkout
+      - run:
+          name: Check out the starter's source revision
+          command: |
+            set -euo pipefail
+            suite_files=$(mktemp -d)
+            cp .circleci/junit.py .circleci/test-suites.yml "$suite_files/"
+            git fetch --no-tags --depth=1 https://github.com/zwthys-cyber/ipa-decrypt-lab.git 2713846b80ed82ed4f922c12757877413495c3d9
+            git checkout --quiet --detach FETCH_HEAD
+            test "$(git rev-parse HEAD)" = 2713846b80ed82ed4f922c12757877413495c3d9
+            cp "$suite_files/junit.py" "$suite_files/test-suites.yml" .circleci/
+      - setup-python:
+          with:
+            python-version: "3.12"
+      - setup-node:
+          with:
+            node-version: "22"
+      - run:
+          name: Install the unittest JUnit reporter
+          command: python3 -m pip install unittest-xml-reporting==3.2.0
+      - run:
+          name: Install the pinned simulator and bundler
+          working_directory: deploy/managed/free-pilot
+          command: npm install --no-save --package-lock=false --no-audit --no-fund miniflare@4.20260730.0 esbuild@0.28.2
+      - run:
+          name: Build the Worker and check its syntax
+          command: |
+            root=deploy/managed/free-pilot
+            mkdir -p pilot-dist
+            "$root/node_modules/.bin/esbuild" "$root/worker.mjs" --bundle --platform=browser --format=esm --target=es2022 --outfile=pilot-dist/worker.mjs
+            node --check pilot-dist/worker.mjs
+      - run: circleci testsuite doctor "Free pilot Python"
+      - run: circleci testsuite run "Free pilot Python"
+      - run: circleci testsuite doctor "Free pilot Worker"
+      - run: circleci testsuite run "Free pilot Worker"
+      - store_test_results:
+          path: test-results/free-pilot
+
 workflows:
-  compatibility:
+  starter:
     jobs:
-      - macos-compat
+      - archive-audit
+      - free-pilot
