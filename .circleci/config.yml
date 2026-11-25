@@ -22,6 +22,27 @@ jobs:
       - run:
           name: Archive, package, and verify the ARM64 iOS sample
           command: bash sample/build-ipa.sh
+      - run:
+          name: Verify the IPA with the v0.2 delivery archive verifier
+          command: |
+            set -euo pipefail
+            verifier_dir="$(mktemp -d)"
+            trap 'rm -rf "$verifier_dir"' EXIT
+            source_url="https://raw.githubusercontent.com/zwthys-cyber/ipa-decrypt-lab/75293a9a3c28963bcfe7fccd84620bf70c7753bd/deploy/managed/free-pilot"
+            curl --fail --silent --show-error --proto '=https' --max-time 20 "$source_url/archive_verify.py" -o "$verifier_dir/archive_verify.py"
+            curl --fail --silent --show-error --proto '=https' --max-time 20 "$source_url/zip_preflight.py" -o "$verifier_dir/zip_preflight.py"
+            (
+              cd "$verifier_dir"
+              shasum -a 256 -c <<'CHECKSUMS'
+            2c487eda3cfc8af86501f80d8357ee93cf62ca760b3b49268153526756bc81e2  archive_verify.py
+            f07e91a8798466f5bcb1d4d7df1ac9132c93134315824190d0fdb826540aa89e  zip_preflight.py
+            CHECKSUMS
+            )
+            ipa="build/ipa/ARMSample-unsigned.ipa"
+            chmod 600 "$ipa"
+            expected="$(awk '$2 == "ARMSample-unsigned.ipa" {print $1}' build/ipa/SHA256SUMS)"
+            python3 "$verifier_dir/archive_verify.py" "$ipa" --expected-sha256 "$expected" --confirm-authorized-file |
+              tee build/ipa/delivery-verification.json
       - store_artifacts:
           path: build/ipa
           destination: arm64-ios-sample
