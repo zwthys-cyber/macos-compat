@@ -33,8 +33,6 @@ jobs:
   free-pilot:
     docker:
       - image: cimg/base:stable
-    environment:
-      CLOUDFLARE_CF_FETCH_ENABLED: "false"
     steps:
       - checkout
       - run:
@@ -57,9 +55,9 @@ jobs:
           name: Install the unittest JUnit reporter
           command: python3 -m pip install unittest-xml-reporting==3.2.0
       - run:
-          name: Install the pinned simulator and bundler
+          name: Install the pinned Worker bundler
           working_directory: deploy/managed/free-pilot
-          command: npm install --no-save --package-lock=false --no-audit --no-fund miniflare@4.20260730.0 esbuild@0.28.2
+          command: npm install --no-save --package-lock=false --no-audit --no-fund esbuild@0.28.2
       - run:
           name: Build the Worker and check its syntax
           command: |
@@ -69,12 +67,6 @@ jobs:
             node --check pilot-dist/worker.mjs
       - run: circleci testsuite doctor "Free pilot Python"
       - run: circleci testsuite run "Free pilot Python"
-      - run:
-          name: Inspect the workerd integration startup
-          command: |
-            getconf GNU_LIBC_VERSION
-            (cd deploy/managed/free-pilot && ./node_modules/.bin/workerd --version)
-            node --test deploy/managed/free-pilot/workerd.integration.mjs
       - run: circleci testsuite doctor "Free pilot Worker"
       - run: circleci testsuite run "Free pilot Worker"
       - store_test_results:

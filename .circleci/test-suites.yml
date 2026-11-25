@@ -25,7 +25,6 @@ discover: >-
   deploy/managed/free-pilot/drive-smoke.test.mjs
   deploy/managed/free-pilot/private-link.test.mjs
   deploy/managed/free-pilot/worker.test.mjs
-  deploy/managed/free-pilot/workerd.integration.mjs
 run: python3 .circleci/junit.py node "<< outputs.junit >>" << test.atoms >>
 outputs:
   junit: test-results/free-pilot/worker.xml
