@@ -1,10 +1,21 @@
 version: 2.1
+parameters:
+  install_rosetta:
+    type: boolean
+    default: false
+    description: Install Rosetta in this test job after accepting Apple's Rosetta license.
 jobs:
   macos-compat:
     macos:
       xcode: "26.5"
     resource_class: m4pro.medium
     steps:
+      - when:
+          condition: << pipeline.parameters.install_rosetta >>
+          steps:
+            - run:
+                name: Install Rosetta in the test VM
+                command: softwareupdate --install-rosetta --agree-to-license
       - run:
           name: Verify native ARM64 and report x86-64 translation
           command: |
@@ -23,6 +34,9 @@ jobs:
               echo 'rosetta_x86_64=passed'
             else
               echo 'rosetta_x86_64=unavailable_or_failed'
+              if [ "<< pipeline.parameters.install_rosetta >>" = "true" ]; then
+                exit 1
+              fi
             fi
 workflows:
   compatibility:
