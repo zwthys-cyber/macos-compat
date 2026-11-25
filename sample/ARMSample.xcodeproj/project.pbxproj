@@ -1,0 +1,104 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        100000000000000000000001 = {
+            isa = PBXProject;
+            buildConfigurationList = 100000000000000000000011;
+            compatibilityVersion = "Xcode 14.0";
+            developmentRegion = en;
+            knownRegions = (en, Base);
+            mainGroup = 100000000000000000000002;
+            productRefGroup = 100000000000000000000003;
+            projectDirPath = "";
+            projectRoot = "";
+            targets = (100000000000000000000004);
+        };
+        100000000000000000000002 = {
+            isa = PBXGroup;
+            children = (100000000000000000000005, 100000000000000000000006, 100000000000000000000003);
+            sourceTree = "<group>";
+        };
+        100000000000000000000003 = {
+            isa = PBXGroup;
+            children = (100000000000000000000007);
+            name = Products;
+            sourceTree = "<group>";
+        };
+        100000000000000000000004 = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 100000000000000000000012;
+            buildPhases = (100000000000000000000008);
+            buildRules = ();
+            dependencies = ();
+            name = ARMSample;
+            productName = ARMSample;
+            productReference = 100000000000000000000007;
+            productType = "com.apple.product-type.application";
+        };
+        100000000000000000000005 = {
+            isa = PBXFileReference;
+            lastKnownFileType = sourcecode.swift;
+            path = ARMSample.swift;
+            sourceTree = "<group>";
+        };
+        100000000000000000000006 = {
+            isa = PBXFileReference;
+            lastKnownFileType = text.plist.xml;
+            path = Info.plist;
+            sourceTree = "<group>";
+        };
+        100000000000000000000007 = {
+            isa = PBXFileReference;
+            explicitFileType = wrapper.application;
+            path = ARMSample.app;
+            sourceTree = BUILT_PRODUCTS_DIR;
+        };
+        100000000000000000000008 = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (100000000000000000000009);
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        100000000000000000000009 = {
+            isa = PBXBuildFile;
+            fileRef = 100000000000000000000005;
+        };
+        100000000000000000000011 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (100000000000000000000013);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        100000000000000000000012 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (100000000000000000000014);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        100000000000000000000013 = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+                SDKROOT = iphoneos;
+                SWIFT_VERSION = 5.0;
+            };
+            name = Release;
+        };
+        100000000000000000000014 = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                GENERATE_INFOPLIST_FILE = NO;
+                INFOPLIST_FILE = Info.plist;
+                PRODUCT_BUNDLE_IDENTIFIER = "org.example.arm64-build-sample";
+                PRODUCT_NAME = ARMSample;
+                SKIP_INSTALL = NO;
+                TARGETED_DEVICE_FAMILY = "1,2";
+            };
+            name = Release;
+        };
+    };
+    rootObject = 100000000000000000000001;
+}

@@ -7,13 +7,18 @@ output_dir="$repo_dir/build/ipa"
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
 
-bundle="$stage/Payload/ARMSample.app"
-mkdir -p "$bundle" "$output_dir"
-cp "$repo_dir/sample/Info.plist" "$bundle/Info.plist"
-sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
-xcrun --sdk iphoneos swiftc -parse-as-library -module-name ARMSample \
-  -sdk "$sdk" -target arm64-apple-ios16.0 \
-  "$repo_dir/sample/ARMSample.swift" -o "$bundle/ARMSample"
+archive="$stage/ARMSample.xcarchive"
+xcodebuild -quiet archive \
+  -project "$repo_dir/sample/ARMSample.xcodeproj" -scheme ARMSample \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -archivePath "$archive" -derivedDataPath "$stage/DerivedData" \
+  ARCHS=arm64 CODE_SIGNING_ALLOWED=NO
+
+plutil -lint "$archive/Info.plist"
+app="$archive/Products/Applications/ARMSample.app"
+test -x "$app/ARMSample"
+mkdir -p "$stage/Payload" "$output_dir"
+ditto "$app" "$stage/Payload/ARMSample.app"
 
 artifact="$output_dir/ARMSample-unsigned.ipa"
 (cd "$stage" && zip -q -X -r "ARMSample-unsigned.ipa" Payload)
@@ -25,5 +30,8 @@ plutil -lint "$stage/Info.plist"
 test "$(plutil -extract CFBundleExecutable raw -o - "$stage/Info.plist")" = ARMSample
 test "$(xcrun lipo -archs "$stage/executable")" = arm64
 xcrun vtool -show-build "$stage/executable" | grep -E 'platform[[:space:]]+IOS[[:space:]]*$'
-(cd "$output_dir" && shasum -a 256 ARMSample-unsigned.ipa > SHA256SUMS && shasum -a 256 -c SHA256SUMS)
+ditto -c -k --keepParent "$archive" "$stage/ARMSample-unsigned.xcarchive.zip"
+unzip -tq "$stage/ARMSample-unsigned.xcarchive.zip"
+mv "$stage/ARMSample-unsigned.xcarchive.zip" "$output_dir/"
+(cd "$output_dir" && shasum -a 256 ARMSample-unsigned.ipa ARMSample-unsigned.xcarchive.zip > SHA256SUMS && shasum -a 256 -c SHA256SUMS)
 echo 'ios_arm64_ipa=verified'

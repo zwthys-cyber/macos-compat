@@ -20,7 +20,7 @@ jobs:
             echo 'arm64=passed'
       - checkout
       - run:
-          name: Build and verify the ARM64 iOS sample IPA
+          name: Archive, package, and verify the ARM64 iOS sample
           command: bash sample/build-ipa.sh
       - store_artifacts:
           path: build/ipa
