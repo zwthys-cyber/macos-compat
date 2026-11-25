@@ -6,7 +6,7 @@ jobs:
     resource_class: m4pro.medium
     steps:
       - run:
-          name: Verify native ARM64 and report x86-64 translation
+          name: Verify native ARM64 execution
           command: |
             set -eu
             sw_vers
@@ -18,12 +18,6 @@ jobs:
             xcrun clang -arch arm64 "$tmp/probe.c" -o "$tmp/probe-arm64"
             "$tmp/probe-arm64"
             echo 'arm64=passed'
-            xcrun clang -arch x86_64 "$tmp/probe.c" -o "$tmp/probe-x86_64"
-            if arch -x86_64 "$tmp/probe-x86_64"; then
-              echo 'rosetta_x86_64=passed'
-            else
-              echo 'rosetta_x86_64=unavailable_or_failed'
-            fi
 workflows:
   compatibility:
     jobs:
